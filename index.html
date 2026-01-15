@@ -5,13 +5,13 @@
 <title>UPI QR Generator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- QR Library -->
+<!-- QRCode.js -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  background: linear-gradient(135deg,#020617,#0f172a);
+body{
+  font-family:system-ui,sans-serif;
+  background:linear-gradient(135deg,#020617,#0f172a);
   color:#e5e7eb;
   min-height:100vh;
   margin:0;
@@ -19,7 +19,6 @@ body {
   justify-content:center;
   align-items:center;
 }
-
 .container{
   max-width:420px;
   width:100%;
@@ -28,9 +27,7 @@ body {
   border-radius:16px;
   box-shadow:0 0 40px rgba(0,0,0,.6);
 }
-
-h1{text-align:center;font-size:22px;margin-bottom:18px}
-
+h1{text-align:center;margin-bottom:16px}
 label{font-size:13px;margin-top:10px;display:block}
 input,select{
   width:100%;
@@ -40,9 +37,6 @@ input,select{
   border:none;
   font-size:15px;
 }
-
-input[type="file"]{background:#fff}
-
 .qr-wrap{
   background:#fff;
   margin-top:18px;
@@ -51,7 +45,6 @@ input[type="file"]{background:#fff}
   text-align:center;
   position:relative;
 }
-
 #logoPreview{
   position:absolute;
   top:50%;
@@ -64,7 +57,6 @@ input[type="file"]{background:#fff}
   object-fit:contain;
   background:#fff;
 }
-
 button{
   width:100%;
   margin-top:14px;
@@ -76,7 +68,6 @@ button{
   color:#fff;
   cursor:pointer;
 }
-
 .footer{
   text-align:center;
   font-size:12px;
@@ -91,8 +82,8 @@ button{
 <div class="container">
 <h1>💳 UPI QR Generator</h1>
 
-<label>Paste UPI URL (optional)</label>
-<input id="directUrl" placeholder="upi://pay?pa=example@upi..." oninput="updateQR()">
+<label>Direct UPI URL (optional)</label>
+<input id="directUrl" placeholder="upi://pay?pa=example@upi" oninput="updateQR()">
 
 <label>OR Enter Details</label>
 
@@ -111,13 +102,6 @@ button{
 <label>QR Color</label>
 <input id="color" type="color" value="#000000" oninput="updateQR()">
 
-<label>QR Style</label>
-<select id="style" onchange="updateQR()">
-  <option value="square">Classic</option>
-  <option value="rounded">Rounded</option>
-  <option value="compact">Compact</option>
-</select>
-
 <label>Center Logo (optional)</label>
 <input type="file" accept="image/*" onchange="loadLogo(event)">
 
@@ -135,40 +119,30 @@ button{
 let qr;
 
 function buildUPI(){
-  const direct = document.getElementById("directUrl").value.trim();
+  const direct=document.getElementById("directUrl").value.trim();
   if(direct.startsWith("upi://")) return direct;
 
   const upi=document.getElementById("upi").value.trim();
   if(!upi) return "";
 
   let url=`upi://pay?pa=${upi}&cu=INR`;
-  const n=document.getElementById("name").value.trim();
-  const a=document.getElementById("amount").value.trim();
-  const t=document.getElementById("note").value.trim();
-
-  if(n) url+=`&pn=${encodeURIComponent(n)}`;
-  if(a) url+=`&am=${a}`;
-  if(t) url+=`&tn=${encodeURIComponent(t)}`;
-
+  if(name.value) url+=`&pn=${encodeURIComponent(name.value)}`;
+  if(amount.value) url+=`&am=${amount.value}`;
+  if(note.value) url+=`&tn=${encodeURIComponent(note.value)}`;
   return url;
 }
 
 function updateQR(){
   const text=buildUPI();
-  const color=document.getElementById("color").value;
-  const style=document.getElementById("style").value;
-
-  document.getElementById("qrcode").innerHTML="";
   if(!text) return;
 
-  let size=220, margin=2;
-  if(style==="compact") margin=0;
+  document.getElementById("qrcode").innerHTML="";
 
-  qr=new QRCode("qrcode",{
+  qr=new QRCode(document.getElementById("qrcode"),{
     text:text,
-    width:size,
-    height:size,
-    colorDark:color,
+    width:240,
+    height:240,
+    colorDark:document.getElementById("color").value,
     colorLight:"#ffffff",
     correctLevel:QRCode.CorrectLevel.H
   });
@@ -178,36 +152,37 @@ function loadLogo(e){
   const img=document.getElementById("logoPreview");
   const file=e.target.files[0];
   if(!file) return;
-
   img.src=URL.createObjectURL(file);
   img.style.display="block";
 }
 
 function downloadQR(){
-  const img=document.querySelector("#qrcode img");
-  if(!img) return alert("QR not generated");
+  const canvas=document.querySelector("#qrcode canvas");
+  if(!canvas) return alert("QR not generated");
 
-  const canvas=document.createElement("canvas");
-  const ctx=canvas.getContext("2d");
-  const base=new Image();
-  base.src=img.src;
+  const finalCanvas=document.createElement("canvas");
+  const ctx=finalCanvas.getContext("2d");
 
-  base.onload=()=>{
-    canvas.width=base.width;
-    canvas.height=base.height;
-    ctx.drawImage(base,0,0);
+  finalCanvas.width=canvas.width;
+  finalCanvas.height=canvas.height;
 
-    const logo=document.getElementById("logoPreview");
-    if(logo.style.display==="block"){
-      const s=canvas.width*0.25;
-      ctx.drawImage(logo,(canvas.width-s)/2,(canvas.height-s)/2,s,s);
-    }
+  ctx.drawImage(canvas,0,0);
 
-    const a=document.createElement("a");
-    a.href=canvas.toDataURL("image/png");
-    a.download="upi_qr.png";
-    a.click();
-  };
+  const logo=document.getElementById("logoPreview");
+  if(logo.style.display==="block"){
+    const s=finalCanvas.width*0.25;
+    ctx.drawImage(
+      logo,
+      (finalCanvas.width-s)/2,
+      (finalCanvas.height-s)/2,
+      s,s
+    );
+  }
+
+  const a=document.createElement("a");
+  a.href=finalCanvas.toDataURL("image/png");
+  a.download="upi_qr.png";
+  a.click();
 }
 </script>
 
