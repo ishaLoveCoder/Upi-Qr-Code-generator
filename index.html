@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>UPI QR Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
+
+<style>
+body{
+  font-family:system-ui;
+  background:linear-gradient(135deg,#020617,#0f172a);
+  color:#e5e7eb;
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+}
+.wrapper{
+  display:flex;
+  gap:20px;
+  max-width:900px;
+  width:100%;
+}
+.container{
+  flex:1;
+  background:#020617;
+  padding:22px;
+  border-radius:18px;
+  box-shadow:0 0 40px rgba(0,0,0,.7);
+}
+.help{
+  width:260px;
+  background:#020617;
+  padding:18px;
+  border-radius:18px;
+  font-size:13px;
+  line-height:1.5;
+  opacity:.95;
+}
+.help h3{
+  margin-top:0;
+  font-size:16px;
+}
+.help p{
+  margin:8px 0;
+}
+
+h1{text-align:center;margin-bottom:10px}
+label{font-size:13px;margin-top:10px;display:block}
+input,select{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:10px;
+  border:none;
+  font-size:15px;
+}
+
+.qr-box{
+  background:#fff;
+  margin-top:16px;
+  padding:18px;
+  border-radius:16px;
+  text-align:center;
+}
+
+.title-preview{
+  text-align:center;
+  color:#111;
+  font-weight:600;
+  margin-bottom:6px;
+}
+
+.desc-preview{
+  font-size:12px;
+  color:#333;
+  margin-top:6px;
+}
+
+button{
+  width:100%;
+  margin-top:14px;
+  padding:12px;
+  border:none;
+  border-radius:12px;
+  background:linear-gradient(90deg,#2563eb,#4f46e5);
+  color:#fff;
+  font-size:16px;
+}
+
+.footer{
+  text-align:center;
+  font-size:12px;
+  opacity:.7;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+<div class="container">
+<h1>💳 UPI QR Generator</h1>
+
+<label>Title (Heading)</label>
+<input id="titleText" placeholder="Scan & Pay" oninput="updateQR()">
+
+<label>Description</label>
+<input id="descText" placeholder="Pay securely via UPI" oninput="updateQR()">
+
+<label>Direct UPI URL</label>
+<input id="directUrl" placeholder="upi://pay?pa=example@upi" oninput="updateQR()">
+
+<label>OR UPI ID</label>
+<input id="upi" placeholder="example@upi" oninput="updateQR()">
+
+<label>Name</label>
+<input id="name" oninput="updateQR()">
+
+<label>Amount ₹</label>
+<input id="amount" type="number" oninput="updateQR()">
+
+<label>Note</label>
+<input id="note" oninput="updateQR()">
+
+<label>QR Style</label>
+<select id="style" onchange="updateQR()">
+  <option value="square">Classic</option>
+  <option value="dots">Dots</option>
+  <option value="rounded">Rounded</option>
+  <option value="extra-rounded">Extra Rounded</option>
+</select>
+
+<label>QR Color</label>
+<input type="color" id="color1" value="#000000" oninput="updateQR()">
+
+<label>Gradient Color (optional)</label>
+<input type="color" id="color2" value="#2563eb" oninput="updateQR()">
+
+<label>Custom Center Logo</label>
+<input type="file" accept="image/*" onchange="loadCustomLogo(event)">
+
+<div class="qr-box">
+  <div class="title-preview" id="previewTitle"></div>
+  <div id="qr"></div>
+  <div class="desc-preview" id="previewDesc"></div>
+</div>
+
+<button onclick="downloadQR()">⬇ Download QR</button>
+
+<div class="footer">No history • Client-side only</div>
+</div>
+
+<div class="help">
+<h3>🆘 How to use</h3>
+<p>① Enter your UPI ID or paste direct UPI link</p>
+<p>② Add name, amount & note (optional)</p>
+<p>③ Choose QR style & colors</p>
+<p>④ Add logo if needed</p>
+<p>⑤ Download & print your QR</p>
+<p><b>Tip:</b> Works offline after page load</p>
+</div>
+
+</div>
+
+<script>
+let logoImage=null;
+
+const qr=new QRCodeStyling({
+  width:260,
+  height:260,
+  dotsOptions:{type:"square",color:"#000"},
+  backgroundOptions:{color:"#fff"},
+  imageOptions:{margin:6}
+});
+qr.append(document.getElementById("qr"));
+
+function autoLogo(upi){
+  if(logoImage) return logoImage;
+  if(upi.includes("@paytm")) return "https://upload.wikimedia.org/wikipedia/commons/5/55/Paytm_logo.png";
+  if(upi.includes("@ybl")||upi.includes("@ibl")) return "https://upload.wikimedia.org/wikipedia/commons/0/0c/PhonePe_Logo.png";
+  if(upi.includes("@ok")) return "https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.png";
+  return "https://upload.wikimedia.org/wikipedia/commons/1/1a/BHIM_Logo.png";
+}
+
+function buildUPI(){
+  const d=directUrl.value.trim();
+  if(d.startsWith("upi://")) return d;
+  if(!upi.value) return "";
+  let url=`upi://pay?pa=${upi.value}&cu=INR`;
+  if(name.value) url+=`&pn=${encodeURIComponent(name.value)}`;
+  if(amount.value) url+=`&am=${amount.value}`;
+  if(note.value) url+=`&tn=${encodeURIComponent(note.value)}`;
+  return url;
+}
+
+function updateQR(){
+  const data=buildUPI();
+  if(!data) return;
+
+  previewTitle.innerText=titleText.value;
+  previewDesc.innerText=descText.value;
+
+  qr.update({
+    data:data,
+    image:autoLogo(data),
+    dotsOptions:{
+      type:style.value,
+      gradient:{
+        type:"linear",
+        colorStops:[
+          {offset:0,color:color1.value},
+          {offset:1,color:color2.value}
+        ]
+      }
+    }
+  });
+}
+
+function loadCustomLogo(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  logoImage=URL.createObjectURL(f);
+  updateQR();
+}
+
+function downloadQR(){
+  qr.download({name:"upi_qr",extension:"png"});
+}
+</script>
+
+</body>
+</html>
