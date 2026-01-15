@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>UPI QR Generator</title>
+<title>UPI QR Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- QRCode.js -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <style>
@@ -20,14 +19,16 @@ body{
   align-items:center;
 }
 .container{
-  max-width:420px;
+  max-width:460px;
   width:100%;
   background:#020617;
   padding:22px;
-  border-radius:16px;
-  box-shadow:0 0 40px rgba(0,0,0,.6);
+  border-radius:18px;
+  box-shadow:0 0 50px rgba(0,0,0,.7);
 }
-h1{text-align:center;margin-bottom:16px}
+h1{text-align:center;margin-bottom:6px}
+.sub{text-align:center;font-size:13px;opacity:.7;margin-bottom:14px}
+
 label{font-size:13px;margin-top:10px;display:block}
 input,select{
   width:100%;
@@ -37,26 +38,48 @@ input,select{
   border:none;
   font-size:15px;
 }
+
 .qr-wrap{
   background:#fff;
   margin-top:18px;
-  padding:16px;
-  border-radius:14px;
+  padding:18px;
+  border-radius:16px;
   text-align:center;
   position:relative;
 }
+
+#merchant{
+  font-weight:700;
+  font-size:18px;
+}
+#tagline{
+  font-size:13px;
+  color:#444;
+  margin:6px 0;
+}
+#amountBadge{
+  display:none;
+  background:#16a34a;
+  color:#fff;
+  padding:4px 12px;
+  border-radius:999px;
+  font-size:13px;
+  margin-bottom:8px;
+}
+
 #logoPreview{
   position:absolute;
   top:50%;
   left:50%;
   transform:translate(-50%,-50%);
-  width:60px;
-  height:60px;
-  border-radius:12px;
+  width:64px;
+  height:64px;
+  border-radius:14px;
   display:none;
-  object-fit:contain;
   background:#fff;
+  object-fit:contain;
 }
+
 button{
   width:100%;
   margin-top:14px;
@@ -68,10 +91,11 @@ button{
   color:#fff;
   cursor:pointer;
 }
+
 .footer{
   text-align:center;
   font-size:12px;
-  opacity:.7;
+  opacity:.65;
   margin-top:12px;
 }
 </style>
@@ -80,17 +104,18 @@ button{
 <body>
 
 <div class="container">
-<h1>💳 UPI QR Generator</h1>
+<h1>💳 UPI QR Studio</h1>
+<div class="sub">Instant • Secure • No History</div>
 
-<label>Direct UPI URL (optional)</label>
+<label>Direct UPI URL</label>
 <input id="directUrl" placeholder="upi://pay?pa=example@upi" oninput="updateQR()">
 
-<label>OR Enter Details</label>
+<label>OR Manual Details</label>
 
 <label>UPI ID</label>
-<input id="upi" placeholder="example@upi" oninput="updateQR()">
+<input id="upi" oninput="updateQR()">
 
-<label>Name</label>
+<label>Merchant Name</label>
 <input id="name" oninput="updateQR()">
 
 <label>Amount ₹</label>
@@ -99,89 +124,145 @@ button{
 <label>Note</label>
 <input id="note" oninput="updateQR()">
 
+<label>QR Shape</label>
+<select id="style" onchange="updateQR()">
+  <option value="square">Square</option>
+  <option value="rounded">Rounded</option>
+</select>
+
 <label>QR Color</label>
-<input id="color" type="color" value="#000000" oninput="updateQR()">
+<input id="color1" type="color" value="#000000" oninput="updateQR()">
+
+<label>Background Style</label>
+<select id="bgStyle">
+  <option value="white">White</option>
+  <option value="gradient">Gradient</option>
+  <option value="image">Custom Image</option>
+</select>
+
+<label>Background Image (optional)</label>
+<input type="file" accept="image/*" onchange="loadBackground(event)">
 
 <label>Center Logo (optional)</label>
 <input type="file" accept="image/*" onchange="loadLogo(event)">
 
-<div class="qr-wrap">
+<div class="qr-wrap" id="card">
+  <div id="merchant"></div>
+  <div id="tagline">Scan & Pay using any UPI App</div>
+  <div id="amountBadge"></div>
   <div id="qrcode"></div>
   <img id="logoPreview">
 </div>
 
-<button onclick="downloadQR()">⬇ Download QR</button>
+<button onclick="downloadCard()">⬇ Download QR Card</button>
+<button onclick="downloadA4()">🖨️ Download A4 Poster</button>
 
-<div class="footer">No history • No tracking • Client-side only</div>
+<div class="footer">Client-side only • No data saved</div>
 </div>
 
 <script>
-let qr;
+let bgImage=null;
 
 function buildUPI(){
-  const direct=document.getElementById("directUrl").value.trim();
-  if(direct.startsWith("upi://")) return direct;
-
-  const upi=document.getElementById("upi").value.trim();
-  if(!upi) return "";
-
-  let url=`upi://pay?pa=${upi}&cu=INR`;
-  if(name.value) url+=`&pn=${encodeURIComponent(name.value)}`;
-  if(amount.value) url+=`&am=${amount.value}`;
-  if(note.value) url+=`&tn=${encodeURIComponent(note.value)}`;
-  return url;
+  if(directUrl.value.startsWith("upi://")) return directUrl.value.trim();
+  if(!upi.value.trim()) return "";
+  let u=`upi://pay?pa=${upi.value.trim()}&cu=INR`;
+  if(name.value) u+=`&pn=${encodeURIComponent(name.value)}`;
+  if(amount.value) u+=`&am=${amount.value}`;
+  if(note.value) u+=`&tn=${encodeURIComponent(note.value)}`;
+  return u;
 }
 
 function updateQR(){
-  const text=buildUPI();
-  if(!text) return;
+  const data=buildUPI();
+  if(!data) return;
 
-  document.getElementById("qrcode").innerHTML="";
+  qrcode.innerHTML="";
+  merchant.innerText=name.value||"MERCHANT NAME";
 
-  qr=new QRCode(document.getElementById("qrcode"),{
-    text:text,
-    width:240,
-    height:240,
-    colorDark:document.getElementById("color").value,
+  amountBadge.style.display=amount.value?"inline-block":"none";
+  amountBadge.innerText=amount.value?`₹ ${amount.value}`:"";
+
+  new QRCode(qrcode,{
+    text:data,
+    width:260,
+    height:260,
+    colorDark:color1.value,
     colorLight:"#ffffff",
     correctLevel:QRCode.CorrectLevel.H
   });
 }
 
 function loadLogo(e){
-  const img=document.getElementById("logoPreview");
-  const file=e.target.files[0];
-  if(!file) return;
-  img.src=URL.createObjectURL(file);
-  img.style.display="block";
+  const f=e.target.files[0];
+  if(!f) return;
+  logoPreview.src=URL.createObjectURL(f);
+  logoPreview.style.display="block";
 }
 
-function downloadQR(){
-  const canvas=document.querySelector("#qrcode canvas");
-  if(!canvas) return alert("QR not generated");
+function loadBackground(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  bgImage=URL.createObjectURL(f);
+}
 
-  const finalCanvas=document.createElement("canvas");
-  const ctx=finalCanvas.getContext("2d");
+function renderCanvas(width,height){
+  const c=document.createElement("canvas");
+  const ctx=c.getContext("2d");
+  c.width=width;
+  c.height=height;
 
-  finalCanvas.width=canvas.width;
-  finalCanvas.height=canvas.height;
+  if(bgStyle.value==="gradient"){
+    const g=ctx.createLinearGradient(0,0,0,height);
+    g.addColorStop(0,"#ffffff");
+    g.addColorStop(1,"#e5e7eb");
+    ctx.fillStyle=g;
+  }else{
+    ctx.fillStyle="#ffffff";
+  }
+  ctx.fillRect(0,0,width,height);
 
-  ctx.drawImage(canvas,0,0);
-
-  const logo=document.getElementById("logoPreview");
-  if(logo.style.display==="block"){
-    const s=finalCanvas.width*0.25;
-    ctx.drawImage(
-      logo,
-      (finalCanvas.width-s)/2,
-      (finalCanvas.height-s)/2,
-      s,s
-    );
+  if(bgStyle.value==="image" && bgImage){
+    const img=new Image();
+    img.src=bgImage;
+    ctx.drawImage(img,0,0,width,height);
   }
 
+  const qr=document.querySelector("#qrcode canvas");
+  ctx.drawImage(qr,(width-320)/2,220,320,320);
+
+  if(logoPreview.style.display==="block"){
+    const s=90;
+    ctx.drawImage(logoPreview,(width-s)/2,220+(320-s)/2,s,s);
+  }
+
+  ctx.textAlign="center";
+  ctx.fillStyle="#111";
+  ctx.font="bold 40px system-ui";
+  ctx.fillText(merchant.innerText,width/2,120);
+
+  if(amount.value){
+    ctx.fillStyle="#16a34a";
+    ctx.font="28px system-ui";
+    ctx.fillText(`₹ ${amount.value}`,width/2,170);
+  }
+
+  return c;
+}
+
+function downloadCard(){
+  const c=renderCanvas(900,1200);
   const a=document.createElement("a");
-  a.href=finalCanvas.toDataURL("image/png");
-  a.download="upi_qr.png";
+  a.href=c.toDataURL("image/png");
+  a.download="upi_qr_card.png";
+  a.click();
+}
+
+function downloadA4(){
+  const c=renderCanvas(2480,3508);
+  const a=document.createElement("a");
+  a.href=c.toDataURL("image/png");
+  a.download="upi_qr_a4.png";
   a.click();
 }
 </script>
