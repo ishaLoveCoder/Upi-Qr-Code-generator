@@ -1,19 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>UPI QR Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- QR Styling Library -->
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
+
+<style>
+body{
+  font-family:system-ui;
+  background:linear-gradient(135deg,#020617,#0f172a);
+  color:#e5e7eb;
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.container{
+  max-width:420px;
+  width:100%;
+  background:#020617;
+  padding:22px;
+  border-radius:18px;
+  box-shadow:0 0 40px rgba(0,0,0,.7);
+}
+h1{text-align:center;margin-bottom:16px}
+label{font-size:13px;margin-top:10px;display:block}
+input,select{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:10px;
+  border:none;
+  font-size:15px;
+}
+.qr-box{
+  background:#fff;
+  margin-top:16px;
+  padding:18px;
+  border-radius:16px;
+  text-align:center;
+}
+button{
+  width:100%;
+  margin-top:14px;
+  padding:12px;
+  border:none;
+  border-radius:12px;
+  background:linear-gradient(90deg,#2563eb,#4f46e5);
+  color:#fff;
+  font-size:16px;
+}
+.footer{
+  text-align:center;
+  font-size:12px;
+  opacity:.7;
+  margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
-
 <div class="container">
 <h1>💳 UPI QR Generator</h1>
-
-<label>Title (Heading)</label>
-<input id="titleText" placeholder="Scan & Pay" oninput="updateQR()">
-
-<label>Description</label>
-<input id="descText" placeholder="Pay securely via UPI" oninput="updateQR()">
 
 <label>Direct UPI URL</label>
 <input id="directUrl" placeholder="upi://pay?pa=example@upi" oninput="updateQR()">
@@ -38,19 +91,14 @@
   <option value="extra-rounded">Extra Rounded</option>
 </select>
 
-<label>QR Color</label>
-<input type="color" id="color1" value="#000000" oninput="updateQR()">
-
-<label>Gradient Color (optional)</label>
-<input type="color" id="color2" value="#2563eb" oninput="updateQR()">
-
-<label>Custom Center Logo</label>
+<label>Custom Center Logo (optional)</label>
 <input type="file" accept="image/*" onchange="loadCustomLogo(event)">
 
+<label>Background Image (optional)</label>
+<input type="file" accept="image/*" onchange="loadBackground(event)">
+
 <div class="qr-box">
-  <div class="title-preview" id="previewTitle"></div>
   <div id="qr"></div>
-  <div class="desc-preview" id="previewDesc"></div>
 </div>
 
 <button onclick="downloadQR()">⬇ Download QR</button>
@@ -58,28 +106,18 @@
 <div class="footer">No history • Client-side only</div>
 </div>
 
-<div class="help">
-<h3>🆘 How to use</h3>
-<p>① Enter your UPI ID or paste direct UPI link</p>
-<p>② Add name, amount & note (optional)</p>
-<p>③ Choose QR style & colors</p>
-<p>④ Add logo if needed</p>
-<p>⑤ Download & print your QR</p>
-<p><b>Tip:</b> Works offline after page load</p>
-</div>
-
-</div>
-
 <script>
 let logoImage=null;
+let bgImage=null;
 
-const qr=new QRCodeStyling({
+const qr = new QRCodeStyling({
   width:260,
   height:260,
-  dotsOptions:{type:"square",color:"#000"},
-  backgroundOptions:{color:"#fff"},
-  imageOptions:{margin:6}
+  dotsOptions:{type:"square"},
+  backgroundOptions:{color:"#ffffff"},
+  imageOptions:{crossOrigin:"anonymous",margin:6}
 });
+
 qr.append(document.getElementById("qr"));
 
 function autoLogo(upi){
@@ -91,10 +129,11 @@ function autoLogo(upi){
 }
 
 function buildUPI(){
-  const d=directUrl.value.trim();
+  const d=document.getElementById("directUrl").value.trim();
   if(d.startsWith("upi://")) return d;
-  if(!upi.value) return "";
-  let url=`upi://pay?pa=${upi.value}&cu=INR`;
+  const u=document.getElementById("upi").value.trim();
+  if(!u) return "";
+  let url=`upi://pay?pa=${u}&cu=INR`;
   if(name.value) url+=`&pn=${encodeURIComponent(name.value)}`;
   if(amount.value) url+=`&am=${amount.value}`;
   if(note.value) url+=`&tn=${encodeURIComponent(note.value)}`;
@@ -102,25 +141,15 @@ function buildUPI(){
 }
 
 function updateQR(){
-  const data=buildUPI();
-  if(!data) return;
+  const text=buildUPI();
+  if(!text) return;
 
-  previewTitle.innerText=titleText.value;
-  previewDesc.innerText=descText.value;
-
+  const style=document.getElementById("style").value;
   qr.update({
-    data:data,
-    image:autoLogo(data),
-    dotsOptions:{
-      type:style.value,
-      gradient:{
-        type:"linear",
-        colorStops:[
-          {offset:0,color:color1.value},
-          {offset:1,color:color2.value}
-        ]
-      }
-    }
+    data:text,
+    image:autoLogo(text),
+    dotsOptions:{type:style},
+    backgroundOptions:{image:bgImage||null}
   });
 }
 
@@ -128,6 +157,13 @@ function loadCustomLogo(e){
   const f=e.target.files[0];
   if(!f) return;
   logoImage=URL.createObjectURL(f);
+  updateQR();
+}
+
+function loadBackground(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  bgImage=URL.createObjectURL(f);
   updateQR();
 }
 
